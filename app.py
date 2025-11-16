@@ -1,0 +1,161 @@
+import streamlit as st
+import joblib
+import numpy as np
+import pandas as pd
+
+# Set page config
+st.set_page_config(
+    page_title="🌾 Crop Recommendation System",
+    page_icon="🌾",
+    layout="wide"
+)
+
+# Load the pre-trained model, scaler, and label encoder
+@st.cache_resource
+def load_models():
+    model = joblib.load("crop_model_rf.joblib")
+    scaler = joblib.load("scaler.joblib")
+    le = joblib.load("labelencoder.joblib")
+    return model, scaler, le
+
+model, scaler, le = load_models()
+
+# Get feature names from the model or define them
+feature_names = ['N', 'P', 'K', 'temperature', 'humidity', 'ph', 'rainfall']
+
+# App title and description
+st.title("🌾 Crop Recommendation System")
+st.markdown("---")
+st.write("This system predicts the best crop to plant based on soil and weather conditions.")
+
+# Create two columns for layout
+col1, col2 = st.columns([1, 1])
+
+with col1:
+    st.subheader("📋 Input Features")
+    
+    # Create input fields for each feature
+    N = st.number_input(
+        "Nitrogen (N) content",
+        min_value=0,
+        max_value=150,
+        value=50,
+        step=1,
+        help="Nitrogen content in soil (ppm)"
+    )
+    
+    P = st.number_input(
+        "Phosphorus (P) content",
+        min_value=0,
+        max_value=150,
+        value=50,
+        step=1,
+        help="Phosphorus content in soil (ppm)"
+    )
+    
+    K = st.number_input(
+        "Potassium (K) content",
+        min_value=0,
+        max_value=150,
+        value=50,
+        step=1,
+        help="Potassium content in soil (ppm)"
+    )
+    
+    temperature = st.number_input(
+        "Temperature (°C)",
+        min_value=0.0,
+        max_value=50.0,
+        value=20.0,
+        step=0.1,
+        help="Average temperature in Celsius"
+    )
+    
+    humidity = st.number_input(
+        "Humidity (%)",
+        min_value=0.0,
+        max_value=100.0,
+        value=80.0,
+        step=0.1,
+        help="Relative humidity percentage"
+    )
+    
+    ph = st.number_input(
+        "pH level",
+        min_value=0.0,
+        max_value=14.0,
+        value=7.0,
+        step=0.1,
+        help="Soil pH level"
+    )
+    
+    rainfall = st.number_input(
+        "Rainfall (mm)",
+        min_value=0.0,
+        max_value=500.0,
+        value=200.0,
+        step=1.0,
+        help="Annual rainfall in millimeters"
+    )
+
+with col2:
+    st.subheader("🎯 Prediction Results")
+    
+    # Create feature array
+    features = np.array([[N, P, K, temperature, humidity, ph, rainfall]])
+    
+    # Scale features
+    features_scaled = scaler.transform(features)
+    
+    # Make prediction
+    prediction_encoded = model.predict(features_scaled)[0]
+    prediction_proba = model.predict_proba(features_scaled)[0]
+    
+    # Decode prediction
+    crop_prediction = le.inverse_transform([prediction_encoded])[0]
+    
+    # Display the main prediction
+    st.success(f"### 🌱 Recommended Crop")
+    st.markdown(f"## {crop_prediction.upper()}")
+    
+    # Display confidence
+    confidence = np.max(prediction_proba) * 100
+    st.info(f"**Confidence: {confidence:.2f}%**")
+    
+    # Display prediction probabilities for all crops
+    st.subheader("📊 Prediction Probabilities")
+    
+    # Create a dataframe with probabilities
+    proba_df = pd.DataFrame({
+        'Crop': le.classes_,
+        'Probability': prediction_proba,
+        'Percentage': prediction_proba * 100
+    }).sort_values('Probability', ascending=False)
+    
+    # Display as a bar chart
+    st.bar_chart(proba_df.set_index('Crop')['Percentage'])
+    
+    # Display probabilities as a table
+    st.write(proba_df.to_string(index=False))
+
+# Display summary statistics
+st.markdown("---")
+st.subheader("📈 Input Summary")
+
+summary_data = {
+    'Feature': feature_names,
+    'Value': [N, P, K, temperature, humidity, ph, rainfall]
+}
+summary_df = pd.DataFrame(summary_data)
+st.table(summary_df)
+
+# Footer
+st.markdown("---")
+st.markdown(
+    """
+    <div style='text-align: center'>
+    <p>🌾 Crop Recommendation System | Built with Streamlit & Random Forest</p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
