@@ -101,53 +101,72 @@ with col1:
 with col2:
     st.subheader("🎯 Prediction Results")
     
-    # Create feature array
-    features = np.array([[N, P, K, temperature, humidity, ph, rainfall]])
+    # Add a button to trigger prediction (prevents running on every input change)
+    if st.button("🔮 Get Crop Recommendation", type="primary", use_container_width=True):
+        with st.spinner("Analyzing conditions and predicting crop..."):
+            # Create feature array
+            features = np.array([[N, P, K, temperature, humidity, ph, rainfall]])
+            
+            # Scale features
+            features_scaled = scaler.transform(features)
+            
+            # Make prediction
+            prediction_encoded = model.predict(features_scaled)[0]
+            prediction_proba = model.predict_proba(features_scaled)[0]
+            
+            # Decode prediction
+            crop_prediction = le.inverse_transform([prediction_encoded])[0]
+            
+            # Store in session state to persist results
+            st.session_state['crop_prediction'] = crop_prediction
+            st.session_state['prediction_proba'] = prediction_proba
+            st.session_state['confidence'] = np.max(prediction_proba) * 100
+            st.session_state['features'] = [N, P, K, temperature, humidity, ph, rainfall]
     
-    # Scale features
-    features_scaled = scaler.transform(features)
-    
-    # Make prediction
-    prediction_encoded = model.predict(features_scaled)[0]
-    prediction_proba = model.predict_proba(features_scaled)[0]
-    
-    # Decode prediction
-    crop_prediction = le.inverse_transform([prediction_encoded])[0]
-    
-    # Display the main prediction
-    st.success(f"### 🌱 Recommended Crop")
-    st.markdown(f"## {crop_prediction.upper()}")
-    
-    # Display confidence
-    confidence = np.max(prediction_proba) * 100
-    st.info(f"**Confidence: {confidence:.2f}%**")
-    
-    # Display prediction probabilities for all crops
-    st.subheader("📊 Prediction Probabilities")
-    
-    # Create a dataframe with probabilities
-    proba_df = pd.DataFrame({
-        'Crop': le.classes_,
-        'Probability': prediction_proba,
-        'Percentage': prediction_proba * 100
-    }).sort_values('Probability', ascending=False)
-    
-    # Display as a bar chart
-    st.bar_chart(proba_df.set_index('Crop')['Percentage'])
-    
-    # Display probabilities as a table
-    st.write(proba_df.to_string(index=False))
+    # Display results if available
+    if 'crop_prediction' in st.session_state:
+        # Display the main prediction
+        st.success(f"### 🌱 Recommended Crop")
+        st.markdown(f"## {st.session_state['crop_prediction'].upper()}")
+        
+        # Display confidence
+        st.info(f"**Confidence: {st.session_state['confidence']:.2f}%**")
+        
+        # Display prediction probabilities for all crops
+        st.subheader("📊 Prediction Probabilities")
+        
+        # Create a dataframe with probabilities
+        proba_df = pd.DataFrame({
+            'Crop': le.classes_,
+            'Probability': st.session_state['prediction_proba'],
+            'Percentage': st.session_state['prediction_proba'] * 100
+        }).sort_values('Probability', ascending=False)
+        
+        # Display as a bar chart
+        st.bar_chart(proba_df.set_index('Crop')['Percentage'])
+        
+        # Display probabilities as a table (formatted better)
+        display_df = proba_df[['Crop', 'Percentage']].copy()
+        display_df['Percentage'] = display_df['Percentage'].apply(lambda x: f"{x:.2f}%")
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True
+        )
+    else:
+        st.info("👆 Click the button above to get crop recommendations based on your inputs.")
 
-# Display summary statistics
-st.markdown("---")
-st.subheader("📈 Input Summary")
-
-summary_data = {
-    'Feature': feature_names,
-    'Value': [N, P, K, temperature, humidity, ph, rainfall]
-}
-summary_df = pd.DataFrame(summary_data)
-st.table(summary_df)
+# Display summary statistics (only if prediction has been made)
+if 'features' in st.session_state:
+    st.markdown("---")
+    st.subheader("📈 Input Summary")
+    
+    summary_data = {
+        'Feature': feature_names,
+        'Value': st.session_state['features']
+    }
+    summary_df = pd.DataFrame(summary_data)
+    st.table(summary_df)
 
 # Footer
 st.markdown("---")
