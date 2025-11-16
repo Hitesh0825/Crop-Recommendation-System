@@ -34,6 +34,8 @@ This Streamlit application uses a machine learning model (Random Forest) trained
 - **Interactive Interface**: User-friendly interface with intuitive input controls
 - **Data Visualization**: Visual representation of prediction probabilities using bar charts
 - **Comprehensive Analysis**: View probabilities for all crop options, not just the top recommendation
+- **Optimized Performance**: Button-triggered predictions prevent unnecessary computations on every input change
+- **Fast Model Loading**: Cached model loading using Streamlit's caching mechanism
 
 ## 📊 Input Parameters
 
@@ -120,6 +122,8 @@ crop-system/
 
 ## 🐳 Docker Deployment
 
+### Local Docker Deployment
+
 The project includes a `Dockerfile` for containerized deployment:
 
 ```bash
@@ -129,6 +133,127 @@ docker build -t crop-recommendation .
 # Run the container
 docker run -p 7860:7860 crop-recommendation
 ```
+
+The application will be available at `http://localhost:7860`
+
+### Deploying to HuggingFace Spaces with Docker
+
+HuggingFace Spaces supports Docker deployments, allowing you to deploy your Streamlit app with full control over the environment.
+
+#### Prerequisites
+
+1. **HuggingFace Account**: Sign up at [huggingface.co](https://huggingface.co)
+2. **Docker**: Ensure you have Docker installed locally (for testing)
+3. **Git**: For version control
+
+#### Step-by-Step Deployment Guide
+
+1. **Create a New Space on HuggingFace**
+   - Go to [HuggingFace Spaces](https://huggingface.co/spaces)
+   - Click "Create new Space"
+   - Choose:
+     - **SDK**: Docker
+     - **Hardware**: Select based on your needs (CPU Basic is usually sufficient)
+     - **Visibility**: Public or Private
+   - Name your space (e.g., `crop-recommendation`)
+
+2. **Prepare Your Files**
+   Ensure your repository contains:
+   ```
+   crop-system/
+   ├── Dockerfile              # Docker configuration
+   ├── app.py                  # Streamlit application
+   ├── requirements.txt        # Python dependencies
+   ├── crop_model_rf.joblib   # Trained model
+   ├── scaler.joblib          # Feature scaler
+   └── labelencoder.joblib    # Label encoder
+   ```
+
+3. **Push to HuggingFace**
+   ```bash
+   # Clone your HuggingFace Space repository
+   git clone https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE_NAME
+   cd YOUR_SPACE_NAME
+   
+   # Copy all your files to the repository
+   cp /path/to/crop-system/* .
+   
+   # Commit and push
+   git add .
+   git commit -m "Initial deployment"
+   git push
+   ```
+
+4. **Automatic Build**
+   - HuggingFace will automatically detect the `Dockerfile` and start building
+   - Monitor the build logs in the "Logs" tab of your Space
+   - The build typically takes 5-10 minutes
+
+5. **Access Your App**
+   - Once built, your app will be available at:
+     `https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE_NAME`
+
+#### Dockerfile Configuration for HuggingFace
+
+The included `Dockerfile` is optimized for HuggingFace Spaces:
+- Uses Python 3.10 slim image for smaller size
+- Exposes port 7860 (HuggingFace default)
+- Configures Streamlit for headless operation
+- Includes health checks for container monitoring
+- Optimized layer caching for faster rebuilds
+
+#### Troubleshooting
+
+**Build Fails:**
+- Check the build logs in HuggingFace Spaces
+- Ensure all model files are included in the repository
+- Verify `requirements.txt` has correct package versions
+
+**App Not Loading:**
+- Check that port 7860 is exposed in Dockerfile
+- Verify environment variables are set correctly
+- Review application logs in the HuggingFace interface
+
+**Performance Issues:**
+- The app now uses a button-triggered prediction system (fixed in latest version)
+- Model loading is cached using `@st.cache_resource`
+- Consider upgrading hardware tier if needed
+
+#### Updating Your Deployment
+
+To update your deployed app:
+
+```bash
+cd YOUR_SPACE_NAME
+# Make your changes
+git add .
+git commit -m "Update: description of changes"
+git push
+```
+
+HuggingFace will automatically rebuild and redeploy your app.
+
+#### Environment Variables
+
+The Dockerfile sets these environment variables automatically:
+- `STREAMLIT_SERVER_PORT=7860` - Server port
+- `STREAMLIT_SERVER_ADDRESS=0.0.0.0` - Listen on all interfaces
+- `STREAMLIT_SERVER_HEADLESS=true` - Headless mode
+- `STREAMLIT_BROWSER_GATHER_USAGE_STATS=false` - Disable usage stats
+
+#### Resource Requirements
+
+- **Minimum**: CPU Basic (2 vCPU, 16GB RAM)
+- **Recommended**: CPU Basic for most use cases
+- Model files are typically 1-10MB, so storage is not a concern
+
+#### Best Practices
+
+1. **Keep Dockerfile minimal**: Only include necessary dependencies
+2. **Use .dockerignore**: Exclude unnecessary files (if needed)
+3. **Test locally first**: Build and run Docker image locally before pushing
+4. **Monitor logs**: Check HuggingFace logs regularly for issues
+5. **Version control**: Keep your code in Git for easy updates
 
 ## 🤝 Contributing
 
